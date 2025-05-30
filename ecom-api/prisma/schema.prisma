@@ -32,4 +32,42 @@ model Category {
   order     Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  product Product[] // One-to-many ilişkisi, Category birden fazla Product içerebilir
 }
+
+model Product {
+  id               String          @id @default(uuid())
+  categoryId       String
+  category         Category        @relation(fields: [categoryId], references: [id])
+  name             String
+  slug             String          @unique
+  shortDescription String          @db.Text
+  longDescription  String          @db.Text
+  price            Float
+  primaryPhotoUrl  String?         // Bu alan uygulamada birincil fotoğrafın URL'si olarak tutulabilir, opsiyonel
+  commentCount     Int             @default(0)
+  averageRating    Float           @default(0)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  productPhotos    ProductPhoto[]  // One-to-many ilişkisi
+
+  @@index([categoryId])
+}
+
+model ProductPhoto {
+  id          String    @id @default(uuid())
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id])
+  isPrimary   Boolean   @default(false)
+  url         String
+  size        Int
+  order       Int
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([productId, order])  // Aynı ürün için order unique olmalı
+  @@index([productId])
+}
+
