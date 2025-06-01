@@ -23,6 +23,8 @@ model User {
   passwordHash String // Hash'lenmiş parola
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  productComments ProductComment[] // One-to-many ilişkisi, User birden fazla ProductComment içerebilir
 }
 
 model Category {
@@ -52,6 +54,7 @@ model Product {
   updatedAt        DateTime        @updatedAt
 
   productPhotos    ProductPhoto[]  // One-to-many ilişkisi
+  productComments  ProductComment[] // yeni ilişki eklendi
 
   @@index([categoryId])
 }
@@ -70,4 +73,23 @@ model ProductPhoto {
   @@unique([productId, order])  // Aynı ürün için order unique olmalı
   @@index([productId])
 }
+
+model ProductComment {
+  id         String   @id @default(uuid())
+  userId     String
+  productId  String
+  title      String?  // null olabilir
+  content    String?  // null olabilir
+  rating     Int      // 1-5 arasında değer beklenir
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // İlişkiler
+  user       User     @relation(fields: [userId], references: [id])
+  product    Product  @relation(fields: [productId], references: [id])
+
+  @@index([productId])
+  @@index([userId])
+}
+
 

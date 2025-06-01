@@ -7,9 +7,10 @@ import { UserModule } from './user/user.module';
 import { CategoryModule } from './category/category.module';
 import { ProductsModule } from './products/products.module';
 import { ProductPhotosModule } from './product-photos/product-photos.module';
+import { ProductCommentsModule } from './product-comments/product-comments.module';
 
 @Module({
-  imports: [AuthModule, PrismaModule, UserModule, CategoryModule, ProductsModule, ProductPhotosModule],
+  imports: [AuthModule, PrismaModule, UserModule, CategoryModule, ProductsModule, ProductPhotosModule, ProductCommentsModule],
   controllers: [AppController],
   providers: [AppService],
 })
