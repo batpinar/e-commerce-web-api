@@ -1,0 +1,23 @@
+{
+  "devDependencies": {
+    "@faker-js/faker": "^9.8.0"
+  },
+  "name": "e-commerce-web-api",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/batpinar/e-commerce-web-api.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/batpinar/e-commerce-web-api/issues"
+  },
+  "homepage": "https://github.com/batpinar/e-commerce-web-api#readme",
+  "description": ""
+}

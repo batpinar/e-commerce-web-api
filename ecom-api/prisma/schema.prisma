@@ -8,10 +8,13 @@ generator client {
   provider = "prisma-client-js"
 }
 
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+// Seed configuration
 
 model User {
   id           String   @id @default(uuid())
@@ -21,8 +24,12 @@ model User {
   username     String   @unique
   email        String   @unique
   passwordHash String // Hash'lenmiş parola
+  resetToken   String?  @unique
+  resetTokenExpiry DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  orders       Order[]
+  cart         Cart?    // One-to-one relation with Cart
 
   productComments ProductComment[] // One-to-many ilişkisi, User birden fazla ProductComment içerebilir
 }
@@ -52,6 +59,8 @@ model Product {
   averageRating    Float           @default(0)
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
+  orderItems       OrderItem[]
+  cartItems        CartItem[]      // One-to-many relation with CartItem
 
   productPhotos    ProductPhoto[]  // One-to-many ilişkisi
   productComments  ProductComment[] // yeni ilişki eklendi
@@ -90,6 +99,64 @@ model ProductComment {
 
   @@index([productId])
   @@index([userId])
+}
+
+model Order {
+  id              String         @id @default(cuid())
+  userId          String
+  status          String         @default("PENDING")
+  paymentMethod   String
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  items           OrderItem[]
+  shippingAddress ShippingAddress?
+  user            User           @relation(fields: [userId], references: [id])
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  productId String
+  quantity  Int
+  price     Float
+  order     Order    @relation(fields: [orderId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id])
+}
+
+model ShippingAddress {
+  id        String   @id @default(cuid())
+  orderId   String   @unique
+  fullName  String
+  phone     String
+  address   String
+  city      String
+  state     String
+  zipCode   String
+  country   String
+  order     Order    @relation(fields: [orderId], references: [id])
+}
+
+model Cart {
+  id        String     @id @default(cuid())
+  userId    String     @unique
+  user      User       @relation(fields: [userId], references: [id])
+  items     CartItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+  cartId    String
+  productId String
+  quantity  Int
+  cart      Cart     @relation(fields: [cartId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([cartId])
+  @@index([productId])
 }
 
 
