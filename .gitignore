@@ -1,0 +1,36 @@
+node_modules
+
+# Yüklenen görseller (örneğin .webp, .png, .jpg)
+uploads/
+*.webp
+*.png
+*.jpg
+*.jpeg
+*.gif
+
+# Mac OS klasörleri
+.DS_Store
+
+# Thumbnail / temp görseller (örneğin CDN ya da geçici görseller)
+*.thumbnail.*
+*.temp.*
+*.cache.*
+*.bak.*
+
+# Genel olarak binary dosyalar
+*.ico
+*.pdf
+*.zip
+*.tar
+*.gz
+*.rar
+*.7z
+
+# Next.js & Node.js için yaygın ignore’lar
+node_modules/
+.next/
+dist/
+.env
+.env.local
+.env.development
+.env.production
