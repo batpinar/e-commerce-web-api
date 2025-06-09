@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Param, Patch, Body, ParseUUIDPipe } from '@nestjs/common';
 import { UserService } from './user.service';
-import { UserResponseDto } from 'src/dto/user-response.dto';
-import { UpdateUserDto } from 'src/dto/update-user.dto';
+import { UserResponseDto } from 'src/user/dto/user-response.dto';
+import { UpdateUserDto } from 'src/user/dto/update-user.dto';
 
 
 @Controller('api/users')
