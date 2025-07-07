@@ -13,15 +13,7 @@ export class CartService {
       include: {
         items: {
           include: {
-            product: {
-              select: {
-                id: true,
-                name: true,
-                price: true,
-                primaryPhotoUrl: true,
-                slug: true,
-              },
-            },
+            product: true,
           },
         },
       },
@@ -35,30 +27,14 @@ export class CartService {
         include: {
           items: {
             include: {
-              product: {
-                select: {
-                  id: true,
-                  name: true,
-                  price: true,
-                  primaryPhotoUrl: true,
-                  slug: true,
-                },
-              },
+              product: true,
             },
           },
         },
       });
     }
 
-    // Calculate totals
-    const totalItems = cart.items.reduce((sum, item) => sum + item.quantity, 0);
-    const totalPrice = cart.items.reduce((sum, item) => sum + (item.quantity * item.product.price), 0);
-
-    return {
-      ...cart,
-      totalItems,
-      totalPrice,
-    };
+    return cart;
   }
 
   async addItemToCart(userId: string, productId: string, quantity: number) {
@@ -80,21 +56,14 @@ export class CartService {
       },
     });
 
-    if (existingItem) {    return this.prisma.cartItem.update({
-      where: { id: existingItem.id },
-      data: { quantity: existingItem.quantity + quantity },
-      include: {
-        product: {
-          select: {
-            id: true,
-            name: true,
-            price: true,
-            primaryPhotoUrl: true,
-            slug: true,
-          },
+    if (existingItem) {
+      return this.prisma.cartItem.update({
+        where: { id: existingItem.id },
+        data: { quantity: existingItem.quantity + quantity },
+        include: {
+          product: true,
         },
-      },
-    });
+      });
     }
 
     return this.prisma.cartItem.create({
@@ -104,15 +73,7 @@ export class CartService {
         quantity,
       },
       include: {
-        product: {
-          select: {
-            id: true,
-            name: true,
-            price: true,
-            primaryPhotoUrl: true,
-            slug: true,
-          },
-        },
+        product: true,
       },
     });
   }
@@ -139,15 +100,7 @@ export class CartService {
       where: { id: cartItemId },
       data: { quantity },
       include: {
-        product: {
-          select: {
-            id: true,
-            name: true,
-            price: true,
-            primaryPhotoUrl: true,
-            slug: true,
-          },
-        },
+        product: true,
       },
     });
   }

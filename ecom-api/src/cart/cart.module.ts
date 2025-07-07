@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
 import { CartService } from './cart.service';
-import { CartController } from './cart.controller'; // This controller will be created next
+import { CartController } from './cart.controller';
 import { PrismaModule } from '../prisma/prisma.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, AuthModule],
   controllers: [CartController],
   providers: [CartService],
 })
