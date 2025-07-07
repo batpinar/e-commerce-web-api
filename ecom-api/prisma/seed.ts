@@ -1,5 +1,6 @@
-import { PrismaClient, Product } from '@prisma/client';
+import { PrismaClient, Product, UserRole } from '@prisma/client';
 import { faker } from '@faker-js/faker/locale/tr';
+import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
@@ -18,9 +19,8 @@ const generateSlug = (text: string) => {
     .replace(/^-|-$/g, '');
 };
 
-const generatePasswordHash = () => {
-  // Gerçek uygulamada bcrypt kullanılmalı
-  return faker.internet.password({ length: 60 });
+const generatePasswordHash = async (password: string = 'Test123!') => {
+  return await bcrypt.hash(password, 10);
 };
 
 async function main() {
@@ -48,6 +48,31 @@ async function main() {
     })
   );
 
+  // Önce test kullanıcıları oluştur (ADMIN, MODERATOR, USER)
+  const adminUser = await prisma.user.create({
+    data: {
+      firstName: 'Admin',
+      lastName: 'User',
+      fullName: 'Admin User',
+      username: 'admin',
+      email: 'admin@test.com',
+      passwordHash: await generatePasswordHash('Admin123!'),
+      role: UserRole.ADMIN,
+    },
+  });
+
+  const moderatorUser = await prisma.user.create({
+    data: {
+      firstName: 'Moderator',
+      lastName: 'User',
+      fullName: 'Moderator User',
+      username: 'moderator',
+      email: 'moderator@test.com',
+      passwordHash: await generatePasswordHash('Moderator123!'),
+      role: UserRole.MODERATOR,
+    },
+  });
+
   // Kullanıcıları oluştur
   const userCount = faker.number.int({ min: 10, max: 20 });
   const users = await Promise.all(
@@ -61,11 +86,15 @@ async function main() {
           fullName: `${firstName} ${lastName}`,
           username: faker.internet.userName(),
           email: faker.internet.email(),
-          passwordHash: generatePasswordHash(),
+          passwordHash: await generatePasswordHash(),
+          role: UserRole.USER, // Varsayılan olarak USER rolü
         },
       });
     })
   );
+
+  // Tüm kullanıcıları birleştir
+  const allUsers = [adminUser, moderatorUser, ...users];
 
   // Her kategori için ürünler oluştur
   const allProducts: Product[] = [];
@@ -111,7 +140,7 @@ async function main() {
   }
 
   // Her kullanıcı için sepet ve yorumlar oluştur
-  for (const user of users) {
+  for (const user of allUsers) {
     // Sepet oluştur
     const cart = await prisma.cart.create({
       data: {

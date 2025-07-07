@@ -38,7 +38,7 @@ export class UserService {
     }
 
     private toResponseDto(user: any): UserResponseDto {
-        const { id, firstName, lastName, username, email, createdAt, updatedAt } = user;
+        const { id, firstName, lastName, username, email, role, createdAt, updatedAt } = user;
         return {
             Id: id,
             firstName,
@@ -46,6 +46,7 @@ export class UserService {
             fullName: `${firstName} ${lastName}`,
             username,
             email,
+            role,
             createdAt,
             updatedAt,
         };
