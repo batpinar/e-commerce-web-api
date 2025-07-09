@@ -1,4 +1,4 @@
-import { PrismaClient, Product, UserRole } from '@prisma/client';
+import { PrismaClient, Product, UserRole, OrderStatus } from '@prisma/client';
 import { faker } from '@faker-js/faker/locale/tr';
 import * as bcrypt from 'bcrypt';
 
@@ -49,8 +49,10 @@ async function main() {
   );
 
   // Önce test kullanıcıları oluştur (ADMIN, MODERATOR, USER)
-  const adminUser = await prisma.user.create({
-    data: {
+  const adminUser = await prisma.user.upsert({
+    where: { username: 'admin' },
+    update: {},
+    create: {
       firstName: 'Admin',
       lastName: 'User',
       fullName: 'Admin User',
@@ -61,8 +63,10 @@ async function main() {
     },
   });
 
-  const moderatorUser = await prisma.user.create({
-    data: {
+  const moderatorUser = await prisma.user.upsert({
+    where: { username: 'moderator' },
+    update: {},
+    create: {
       firstName: 'Moderator',
       lastName: 'User',
       fullName: 'Moderator User',
@@ -76,7 +80,7 @@ async function main() {
   // Kullanıcıları oluştur
   const userCount = faker.number.int({ min: 10, max: 20 });
   const users = await Promise.all(
-    Array.from({ length: userCount }).map(async () => {
+    Array.from({ length: userCount }).map(async (_, index) => {
       const firstName = faker.person.firstName();
       const lastName = faker.person.lastName();
       return prisma.user.create({
@@ -84,7 +88,7 @@ async function main() {
           firstName,
           lastName,
           fullName: `${firstName} ${lastName}`,
-          username: faker.internet.userName(),
+          username: faker.internet.username() + '_' + index + '_' + faker.string.alphanumeric(4),
           email: faker.internet.email(),
           passwordHash: await generatePasswordHash(),
           role: UserRole.USER, // Varsayılan olarak USER rolü
@@ -103,11 +107,12 @@ async function main() {
     const categoryProducts = await Promise.all(
       Array.from({ length: productCount }).map(async () => {
         const name = faker.commerce.productName();
+        const uniqueSlug = generateSlug(name) + '-' + faker.string.alphanumeric(6);
         return prisma.product.create({
           data: {
             categoryId: category.id,
             name,
-            slug: generateSlug(name),
+            slug: uniqueSlug,
             shortDescription: faker.commerce.productDescription(),
             longDescription: faker.lorem.paragraphs(3),
             price: parseFloat(faker.commerce.price({ min: 100, max: 2000 })),
@@ -141,9 +146,11 @@ async function main() {
 
   // Her kullanıcı için sepet ve yorumlar oluştur
   for (const user of allUsers) {
-    // Sepet oluştur
-    const cart = await prisma.cart.create({
-      data: {
+    // Sepet oluştur (upsert kullanarak)
+    const cart = await prisma.cart.upsert({
+      where: { userId: user.id },
+      update: {},
+      create: {
         userId: user.id,
       },
     });
@@ -187,25 +194,40 @@ async function main() {
     if (faker.datatype.boolean({ probability: 0.4 })) {
       const orderCount = faker.number.int({ min: 1, max: 3 });
       for (let i = 0; i < orderCount; i++) {
+        // Sipariş için ürünleri ve toplam fiyatı hesapla
+        const orderItemCount = faker.number.int({ min: 1, max: 3 });
+        const randomProducts = faker.helpers.arrayElements(allProducts, orderItemCount);
+        const orderItems = randomProducts.map(product => ({
+          productId: product.id,
+          quantity: faker.number.int({ min: 1, max: 3 }),
+          unitPrice: product.price,
+        }));
+        
+        const totalPrice = orderItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+        
         const order = await prisma.order.create({
           data: {
             userId: user.id,
-            status: faker.helpers.arrayElement(['PENDING', 'COMPLETED', 'CANCELLED']),
-            paymentMethod: faker.helpers.arrayElement(['CREDIT_CARD', 'BANK_TRANSFER']),
+            status: faker.helpers.arrayElement([
+              OrderStatus.PENDING, 
+              OrderStatus.PAID, 
+              OrderStatus.SHIPPED, 
+              OrderStatus.DELIVERED, 
+              OrderStatus.CANCELLED
+            ]),
+            TotalPrice: totalPrice,
           },
         });
 
         // Siparişe ürün ekle
-        const orderItemCount = faker.number.int({ min: 1, max: 3 });
-        const randomProducts = faker.helpers.arrayElements(allProducts, orderItemCount);
         await Promise.all(
-          randomProducts.map(async (product) => {
+          orderItems.map(async (item) => {
             return prisma.orderItem.create({
               data: {
                 orderId: order.id,
-                productId: product.id,
-                quantity: faker.number.int({ min: 1, max: 3 }),
-                price: product.price,
+                productId: item.productId,
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
               },
             });
           })
@@ -248,7 +270,40 @@ async function main() {
     });
   }
 
+  // Bazı kullanıcılar için test sepeti oluştur
+  const testUsers = allUsers.slice(0, 5); // İlk 5 kullanıcı için sepet oluştur
+  for (const user of testUsers) {
+    if (faker.datatype.boolean({ probability: 0.6 })) {
+      // Kullanıcı için sepet oluştur (upsert kullanarak)
+      const cart = await prisma.cart.upsert({
+        where: { userId: user.id },
+        update: {},
+        create: {
+          userId: user.id,
+        },
+      });
+
+      // Sepete random ürünler ekle
+      const cartItemCount = faker.number.int({ min: 1, max: 4 });
+      const randomProducts = faker.helpers.arrayElements(allProducts, cartItemCount);
+      
+      await Promise.all(
+        randomProducts.map(async (product) => {
+          return prisma.cartItem.create({
+            data: {
+              cartId: cart.id,
+              productId: product.id,
+              quantity: faker.number.int({ min: 1, max: 3 }),
+            },
+          });
+        })
+      );
+    }
+  }
+
   console.log('✅ Mock data seeding complete.');
+  console.log(`📊 Created ${allUsers.length} users, ${allProducts.length} products`);
+  console.log(`🛒 Created sample carts and orders for testing`);
 }
 
 main()

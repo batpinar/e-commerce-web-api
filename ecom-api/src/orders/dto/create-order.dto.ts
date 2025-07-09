@@ -1,21 +1,4 @@
-import { IsString, IsNumber, IsArray, ValidateNested, IsEnum } from 'class-validator'
-import { Type } from 'class-transformer'
-
-export enum PaymentMethod {
-  CREDIT_CARD = 'CREDIT_CARD',
-  BANK_TRANSFER = 'BANK_TRANSFER',
-}
-
-export class OrderItemDto {
-  @IsString()
-  productId: string
-
-  @IsNumber()
-  quantity: number
-
-  @IsNumber()
-  price: number
-}
+import { IsString, IsOptional } from 'class-validator'
 
 export class CreateOrderDto {
   @IsString()
@@ -39,11 +22,7 @@ export class CreateOrderDto {
   @IsString()
   country: string
 
-  @IsEnum(PaymentMethod)
-  paymentMethod: PaymentMethod
-
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => OrderItemDto)
-  items: OrderItemDto[]
+  @IsString()
+  @IsOptional()
+  notes?: string
 } 

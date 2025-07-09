@@ -8,7 +8,6 @@ generator client {
   provider = "prisma-client-js"
 }
 
-
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -23,20 +22,20 @@ enum UserRole {
 }
 
 model User {
-  id           String   @id @default(uuid())
-  firstName    String
-  lastName     String
-  fullName     String   @db.VarChar(255)
-  username     String   @unique
-  email        String   @unique
-  passwordHash String // Hash'lenmiş parola
-  role         UserRole @default(USER)
-  resetToken   String?  @unique
+  id               String    @id @default(uuid())
+  firstName        String
+  lastName         String
+  fullName         String    @db.VarChar(255)
+  username         String    @unique
+  email            String    @unique
+  passwordHash     String // Hash'lenmiş parola
+  role             UserRole  @default(USER)
+  resetToken       String?   @unique
   resetTokenExpiry DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  orders       Order[]
-  cart         Cart?    // One-to-one relation with Cart
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  orders           Order[]
+  cart             Cart? // One-to-one relation with Cart
 
   productComments ProductComment[] // One-to-many ilişkisi, User birden fazla ProductComment içerebilir
 }
@@ -53,71 +52,71 @@ model Category {
 }
 
 model Product {
-  id               String          @id @default(uuid())
+  id               String      @id @default(uuid())
   categoryId       String
-  category         Category        @relation(fields: [categoryId], references: [id])
+  category         Category    @relation(fields: [categoryId], references: [id])
   name             String
-  slug             String          @unique
-  shortDescription String          @db.Text
-  longDescription  String          @db.Text
+  slug             String      @unique
+  shortDescription String      @db.Text
+  longDescription  String      @db.Text
   price            Float
-  primaryPhotoUrl  String?         // Bu alan uygulamada birincil fotoğrafın URL'si olarak tutulabilir, opsiyonel
-  commentCount     Int             @default(0)
-  averageRating    Float           @default(0)
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  primaryPhotoUrl  String? // Bu alan uygulamada birincil fotoğrafın URL'si olarak tutulabilir, opsiyonel
+  commentCount     Int         @default(0)
+  averageRating    Float       @default(0)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
   orderItems       OrderItem[]
-  cartItems        CartItem[]      // One-to-many relation with CartItem
+  cartItems        CartItem[] // One-to-many relation with CartItem
 
-  productPhotos    ProductPhoto[]  // One-to-many ilişkisi
-  productComments  ProductComment[] // yeni ilişki eklendi
+  productPhotos   ProductPhoto[] // One-to-many ilişkisi
+  productComments ProductComment[] // yeni ilişki eklendi
 
   @@index([categoryId])
 }
 
 model ProductPhoto {
-  id          String    @id @default(uuid())
-  productId   String
-  product     Product   @relation(fields: [productId], references: [id])
-  isPrimary   Boolean   @default(false)
-  url         String
-  size        Int
-  order       Int
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id        String   @id @default(uuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  isPrimary Boolean  @default(false)
+  url       String
+  size      Int
+  order     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  @@unique([productId, order])  // Aynı ürün için order unique olmalı
+  @@unique([productId, order]) // Aynı ürün için order unique olmalı
   @@index([productId])
 }
 
 model ProductComment {
-  id         String   @id @default(uuid())
-  userId     String
-  productId  String
-  title      String?  // null olabilir
-  content    String?  // null olabilir
-  rating     Int      // 1-5 arasında değer beklenir
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String   @id @default(uuid())
+  userId    String
+  productId String
+  title     String? // null olabilir
+  content   String? // null olabilir
+  rating    Int // 1-5 arasında değer beklenir
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // İlişkiler
-  user       User     @relation(fields: [userId], references: [id])
-  product    Product  @relation(fields: [productId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
 
   @@index([productId])
   @@index([userId])
 }
 
 model Order {
-  id              String         @id @default(cuid())
+  id              String           @id @default(cuid())
   userId          String
-  status          String         @default("PENDING")
-  paymentMethod   String
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-  items           OrderItem[]
+  status          OrderStatus      @default(PENDING)
+  TotalPrice      Float
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  orderItems      OrderItem[]
   shippingAddress ShippingAddress?
-  user            User           @relation(fields: [userId], references: [id])
+  user            User             @relation(fields: [userId], references: [id])
 }
 
 model OrderItem {
@@ -125,22 +124,32 @@ model OrderItem {
   orderId   String
   productId String
   quantity  Int
-  price     Float
+  unitPrice Float
   order     Order    @relation(fields: [orderId], references: [id])
   product   Product  @relation(fields: [productId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  SHIPPED
+  DELIVERED
+  CANCELLED
 }
 
 model ShippingAddress {
-  id        String   @id @default(cuid())
-  orderId   String   @unique
-  fullName  String
-  phone     String
-  address   String
-  city      String
-  state     String
-  zipCode   String
-  country   String
-  order     Order    @relation(fields: [orderId], references: [id])
+  id       String @id @default(cuid())
+  orderId  String @unique
+  fullName String
+  phone    String
+  address  String
+  city     String
+  state    String
+  zipCode  String
+  country  String
+  order    Order  @relation(fields: [orderId], references: [id])
 }
 
 model Cart {
@@ -165,5 +174,3 @@ model CartItem {
   @@index([cartId])
   @@index([productId])
 }
-
-

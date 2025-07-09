@@ -1,34 +1,36 @@
-import { Controller, Post, Get, Body, Param, UsePipes, ValidationPipe, Patch } from '@nestjs/common'
+import { Controller, Post, Get, Body, Param, UsePipes, ValidationPipe, Patch, UseGuards, Request } from '@nestjs/common'
 import { OrdersService } from './orders.service'
 import { CreateOrderDto } from './dto/create-order.dto'
+import { UpdateOrderStatusDto } from './dto/update-order-status.dto'
+import { JwtAuthGuard } from '../guards/jwt-auth.guard'
 
-// TODO: Replace with actual user ID from authentication
-const HARDCODED_USER_ID = 'user-123'
-
-@Controller('orders')
+@Controller('api/orders')
+@UseGuards(JwtAuthGuard)
 @UsePipes(new ValidationPipe())
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
   @Post()
-  async createOrder(@Body() createOrderDto: CreateOrderDto) {
-    // In a real app, get userId from auth context
-    return this.ordersService.createOrder(HARDCODED_USER_ID, createOrderDto)
+  async createOrder(@Request() req, @Body() createOrderDto: CreateOrderDto) {
+    const userId = req.user.id;
+    return this.ordersService.createOrder(userId, createOrderDto)
   }
 
   @Get()
-  async getUserOrders() {
-    // In a real app, get userId from auth context
-    return this.ordersService.getUserOrders(HARDCODED_USER_ID)
+  async getUserOrders(@Request() req) {
+    const userId = req.user.id;
+    return this.ordersService.getUserOrders(userId)
   }
 
   @Get(':id')
-  async getOrderById(@Param('id') id: string) {
-    return this.ordersService.getOrderById(id)
+  async getOrderById(@Request() req, @Param('id') id: string) {
+    const userId = req.user.id;
+    return this.ordersService.getOrderById(id, userId)
   }
 
-  @Patch(':id/status')
-  async updateOrderStatus(@Param('id') id: string, @Body('status') status: string) {
-    return this.ordersService.updateOrderStatus(id, status)
+  @Patch(':id')
+  async updateOrderStatus(@Request() req, @Param('id') id: string, @Body() updateOrderStatusDto: UpdateOrderStatusDto) {
+    const userId = req.user.id;
+    return this.ordersService.updateOrderStatus(id, updateOrderStatusDto.status, userId)
   }
 } 

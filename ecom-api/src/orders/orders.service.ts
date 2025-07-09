@@ -1,7 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
 import { CreateOrderDto } from './dto/create-order.dto'
-import { PaymentMethod } from './dto/create-order.dto'
 
 @Injectable()
 export class OrdersService {
@@ -20,16 +19,19 @@ export class OrdersService {
       },
     })
 
-    if (!cart) {
-      throw new NotFoundException('Cart not found')
+    if (!cart || cart.items.length === 0) {
+      throw new NotFoundException('Cart is empty or not found')
     }
+
+    // Calculate total price
+    const totalPrice = cart.items.reduce((sum, item) => sum + (item.quantity * item.product.price), 0);
 
     // Create order
     const order = await this.prisma.order.create({
       data: {
         userId,
         status: 'PENDING',
-        paymentMethod: createOrderDto.paymentMethod,
+        TotalPrice: totalPrice,
         shippingAddress: {
           create: {
             fullName: createOrderDto.fullName,
@@ -41,18 +43,26 @@ export class OrdersService {
             country: createOrderDto.country,
           },
         },
-        items: {
+        orderItems: {
           create: cart.items.map((item) => ({
             productId: item.productId,
             quantity: item.quantity,
-            price: item.product.price,
+            unitPrice: item.product.price,
           })),
         },
       },
       include: {
-        items: {
+        orderItems: {
           include: {
-            product: true,
+            product: {
+              select: {
+                id: true,
+                name: true,
+                price: true,
+                primaryPhotoUrl: true,
+                slug: true,
+              },
+            },
           },
         },
         shippingAddress: true,
@@ -67,13 +77,21 @@ export class OrdersService {
     return order
   }
 
-  async getOrderById(orderId: string) {
+  async getOrderById(orderId: string, userId?: string) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
       include: {
-        items: {
+        orderItems: {
           include: {
-            product: true,
+            product: {
+              select: {
+                id: true,
+                name: true,
+                price: true,
+                primaryPhotoUrl: true,
+                slug: true,
+              },
+            },
           },
         },
         shippingAddress: true,
@@ -84,6 +102,11 @@ export class OrdersService {
       throw new NotFoundException(`Order with ID ${orderId} not found`)
     }
 
+    // Check if user has permission to view this order
+    if (userId && order.userId !== userId) {
+      throw new ForbiddenException('You do not have permission to view this order')
+    }
+
     return order
   }
 
@@ -91,9 +114,17 @@ export class OrdersService {
     return this.prisma.order.findMany({
       where: { userId },
       include: {
-        items: {
+        orderItems: {
           include: {
-            product: true,
+            product: {
+              select: {
+                id: true,
+                name: true,
+                price: true,
+                primaryPhotoUrl: true,
+                slug: true,
+              },
+            },
           },
         },
         shippingAddress: true,
@@ -104,7 +135,7 @@ export class OrdersService {
     })
   }
 
-  async updateOrderStatus(orderId: string, status: string) {
+  async updateOrderStatus(orderId: string, status: string, userId?: string) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
     })
@@ -113,13 +144,26 @@ export class OrdersService {
       throw new NotFoundException(`Order with ID ${orderId} not found`)
     }
 
+    // Check if user has permission to update this order (for normal users)
+    if (userId && order.userId !== userId) {
+      throw new ForbiddenException('You do not have permission to update this order')
+    }
+
     return this.prisma.order.update({
       where: { id: orderId },
-      data: { status },
+      data: { status: status as any },
       include: {
-        items: {
+        orderItems: {
           include: {
-            product: true,
+            product: {
+              select: {
+                id: true,
+                name: true,
+                price: true,
+                primaryPhotoUrl: true,
+                slug: true,
+              },
+            },
           },
         },
         shippingAddress: true,
