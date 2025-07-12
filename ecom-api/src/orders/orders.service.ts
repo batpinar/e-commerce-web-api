@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common'
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
 import { CreateOrderDto } from './dto/create-order.dto'
 
@@ -13,7 +13,16 @@ export class OrdersService {
       include: {
         items: {
           include: {
-            product: true,
+            product: {
+              select: {
+                id: true,
+                name: true,
+                price: true,
+                stockQuantity: true,
+                primaryPhotoUrl: true,
+                slug: true,
+              },
+            },
           },
         },
       },
@@ -23,58 +32,85 @@ export class OrdersService {
       throw new NotFoundException('Cart is empty or not found')
     }
 
+    // Stok kontrolü - her ürün için
+    for (const item of cart.items) {
+      if (item.product.stockQuantity < item.quantity) {
+        throw new BadRequestException(
+          `Insufficient stock for product ${item.product.name}. Available: ${item.product.stockQuantity}, Requested: ${item.quantity}`
+        );
+      }
+    }
+
     // Calculate total price
     const totalPrice = cart.items.reduce((sum, item) => sum + (item.quantity * item.product.price), 0);
 
-    // Create order
-    const order = await this.prisma.order.create({
-      data: {
-        userId,
-        status: 'PENDING',
-        TotalPrice: totalPrice,
-        shippingAddress: {
-          create: {
-            fullName: createOrderDto.fullName,
-            phone: createOrderDto.phone,
-            address: createOrderDto.address,
-            city: createOrderDto.city,
-            state: createOrderDto.state,
-            zipCode: createOrderDto.zipCode,
-            country: createOrderDto.country,
+    // Transaction ile sipariş oluştur ve stokları güncelle
+    const order = await this.prisma.$transaction(async (tx) => {
+      // Stokları güncelle
+      for (const item of cart.items) {
+        await tx.product.update({
+          where: { id: item.productId },
+          data: {
+            stockQuantity: {
+              decrement: item.quantity,
+            },
+          },
+        });
+      }
+
+      // Create order
+      const newOrder = await tx.order.create({
+        data: {
+          userId,
+          status: 'PENDING',
+          TotalPrice: totalPrice,
+          shippingAddress: {
+            create: {
+              fullName: createOrderDto.fullName,
+              phone: createOrderDto.phone,
+              address: createOrderDto.address,
+              city: createOrderDto.city,
+              state: createOrderDto.state,
+              zipCode: createOrderDto.zipCode,
+              country: createOrderDto.country,
+            },
+          },
+          orderItems: {
+            create: cart.items.map((item) => ({
+              productId: item.productId,
+              quantity: item.quantity,
+              unitPrice: item.product.price,
+            })),
           },
         },
-        orderItems: {
-          create: cart.items.map((item) => ({
-            productId: item.productId,
-            quantity: item.quantity,
-            unitPrice: item.product.price,
-          })),
-        },
-      },
-      include: {
-        orderItems: {
-          include: {
-            product: {
-              select: {
-                id: true,
-                name: true,
-                price: true,
-                primaryPhotoUrl: true,
-                slug: true,
+        include: {
+          orderItems: {
+            include: {
+              product: {
+                select: {
+                  id: true,
+                  name: true,
+                  price: true,
+                  stockQuantity: true,
+                  primaryPhotoUrl: true,
+                  slug: true,
+                },
               },
             },
           },
+          shippingAddress: true,
         },
-        shippingAddress: true,
-      },
-    })
+      });
 
-    // Clear cart after successful order creation
-    await this.prisma.cartItem.deleteMany({
-      where: { cartId: cart.id },
-    })
+      // Clear cart after successful order creation
+      await tx.cartItem.deleteMany({
+        where: { cartId: cart.id },
+      });
 
-    return order
+      return newOrder;
+    });
+
+    return order;
   }
 
   async getOrderById(orderId: string, userId?: string) {

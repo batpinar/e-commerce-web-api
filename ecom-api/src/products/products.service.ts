@@ -8,8 +8,14 @@ interface FindAllOptions {
     skip?: number;
     take?: number;
     category?: string;
+    categoryId?: string;
     sort?: string;
     search?: string;
+    inStock?: boolean;
+    minPrice?: number;
+    maxPrice?: number;
+    minRating?: number;
+    maxRating?: number;
 }
 
 type ProductWithRelations = Product & {
@@ -21,6 +27,7 @@ type ProductWithRelations = Product & {
     productPhotos: {
         url: string;
     }[];
+    stockQuantity: number;
 };
 
 @Injectable()
@@ -38,15 +45,33 @@ export class ProductsService {
     }
 
     async findAll(options: FindAllOptions = {}): Promise<[ProductWithRelations[], number]> {
-        const { skip = 0, take = 20, category, sort, search } = options;
+        const { 
+            skip = 0, 
+            take = 20, 
+            category, 
+            categoryId,
+            sort, 
+            search, 
+            inStock, 
+            minPrice, 
+            maxPrice, 
+            minRating,
+            maxRating
+        } = options;
 
         const where: Prisma.ProductWhereInput = {
             AND: [
+                // Kategori slug ile filtreleme
                 category ? {
                     category: {
                         slug: category,
                     },
                 } : {},
+                // Kategori ID ile filtreleme
+                categoryId ? {
+                    categoryId: categoryId,
+                } : {},
+                // Arama
                 search ? {
                     OR: [
                         { name: { contains: search, mode: 'insensitive' } },
@@ -54,16 +79,44 @@ export class ProductsService {
                         { longDescription: { contains: search, mode: 'insensitive' } },
                     ],
                 } : {},
+                // Stok filtresi
+                inStock !== undefined ? {
+                    stockQuantity: inStock ? {
+                        gt: 0,
+                    } : {
+                        lte: 0,
+                    }
+                } : {},
+                // Minimum fiyat
+                minPrice ? {
+                    price: {
+                        gte: minPrice,
+                    },
+                } : {},
+                // Maksimum fiyat
+                maxPrice ? {
+                    price: {
+                        lte: maxPrice,
+                    },
+                } : {},
+                // Minimum rating
+                minRating ? {
+                    averageRating: {
+                        gte: minRating,
+                    },
+                } : {},
+                // Maksimum rating
+                maxRating ? {
+                    averageRating: {
+                        lte: maxRating,
+                    },
+                } : {},
             ],
         };
 
-        const orderBy: Prisma.ProductOrderByWithRelationInput = sort ? {
-            ...(sort === 'price_asc' && { price: 'asc' }),
-            ...(sort === 'price_desc' && { price: 'desc' }),
-            ...(sort === 'newest' && { createdAt: 'desc' }),
-            ...(sort === 'rating' && { averageRating: 'desc' }),
-        } : { createdAt: 'desc' };
-
+        // Gelişmiş sıralama sistemi
+        const orderBy: Prisma.ProductOrderByWithRelationInput = this.parseSort(sort);
+        
         const [products, total] = await Promise.all([
             this.prisma.product.findMany({
                 where,
@@ -85,6 +138,7 @@ export class ProductsService {
                         select: {
                             url: true,
                         },
+                        take: 1,
                     },
                 },
             }),
@@ -92,6 +146,54 @@ export class ProductsService {
         ]);
 
         return [products, total];
+    }
+
+    private parseSort(sort?: string): Prisma.ProductOrderByWithRelationInput {
+        if (!sort) return { createdAt: 'desc' }; // Varsayılan: En yeni ürünler
+
+        const sortOptions = sort.split(','); // Birden fazla sıralama kriteri destekle
+        const orderBy: Prisma.ProductOrderByWithRelationInput = {};
+
+        for (const option of sortOptions) {
+            const [field, direction] = option.split(':');
+            const dir = direction?.toLowerCase() === 'desc' ? 'desc' : 'asc';
+
+            switch (field) {
+                case 'price':
+                    orderBy.price = dir;
+                    break;
+                case 'rating':
+                    orderBy.averageRating = dir;
+                    break;
+                case 'name':
+                    orderBy.name = dir;
+                    break;
+                case 'created':
+                case 'date':
+                    orderBy.createdAt = dir;
+                    break;
+                case 'stock':
+                    orderBy.stockQuantity = dir;
+                    break;
+                case 'comments':
+                    orderBy.commentCount = dir;
+                    break;
+                default:
+                    // Varsayılan sıralama seçenekleri
+                    if (option === 'price_asc') orderBy.price = 'asc';
+                    else if (option === 'price_desc') orderBy.price = 'desc';
+                    else if (option === 'rating_desc') orderBy.averageRating = 'desc';
+                    else if (option === 'rating_asc') orderBy.averageRating = 'asc';
+                    else if (option === 'newest') orderBy.createdAt = 'desc';
+                    else if (option === 'oldest') orderBy.createdAt = 'asc';
+                    else if (option === 'name_asc') orderBy.name = 'asc';
+                    else if (option === 'name_desc') orderBy.name = 'desc';
+                    else if (option === 'popular') orderBy.commentCount = 'desc';
+                    break;
+            }
+        }
+
+        return Object.keys(orderBy).length > 0 ? orderBy : { createdAt: 'desc' };
     }
 
     async findOne(slug: string) {

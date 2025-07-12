@@ -105,6 +105,7 @@ describe('ProductPhotos Rules Test', () => {
         shortDescription: 'Short desc',
         longDescription: 'Long desc',
         price: 100,
+        stockQuantity: 10,
         primaryPhotoUrl: null,
         commentCount: 0,
         averageRating: 0,

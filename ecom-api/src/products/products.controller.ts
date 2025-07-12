@@ -29,8 +29,14 @@ export class ProductsController {
         @Query('page') page = '1',
         @Query('limit') limit = '20',
         @Query('category') category?: string,
+        @Query('category_id') categoryId?: string,
         @Query('sort') sort?: string,
         @Query('search') search?: string,
+        @Query('in_stock') inStock?: string,
+        @Query('min_price') minPrice?: string,
+        @Query('max_price') maxPrice?: string,
+        @Query('min_rating') minRating?: string,
+        @Query('max_rating') maxRating?: string,
     ) {
         try {
             const pageNumber = parseInt(page, 10);
@@ -46,13 +52,22 @@ export class ProductsController {
 
             const skip = (pageNumber - 1) * limitNumber;
 
-            const [products, total] = await this.productsService.findAll({
+            // Parse filter parameters
+            const filters = {
                 skip,
                 take: limitNumber,
                 category,
+                categoryId,
                 sort,
                 search,
-            });
+                inStock: inStock !== undefined ? inStock === 'true' : undefined,
+                minPrice: minPrice ? parseFloat(minPrice) : undefined,
+                maxPrice: maxPrice ? parseFloat(maxPrice) : undefined,
+                minRating: minRating ? parseFloat(minRating) : undefined,
+                maxRating: maxRating ? parseFloat(maxRating) : undefined,
+            };
+
+            const [products, total] = await this.productsService.findAll(filters);
 
             return {
                 products,

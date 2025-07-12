@@ -60,6 +60,7 @@ model Product {
   shortDescription String      @db.Text
   longDescription  String      @db.Text
   price            Float
+  stockQuantity    Int         @default(0) // Stok miktarı
   primaryPhotoUrl  String? // Bu alan uygulamada birincil fotoğrafın URL'si olarak tutulabilir, opsiyonel
   commentCount     Int         @default(0)
   averageRating    Float       @default(0)

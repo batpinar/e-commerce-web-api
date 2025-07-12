@@ -65,10 +65,27 @@ export class CartService {
     // Önce ürünün var olup olmadığını kontrol et
     const product = await this.prisma.product.findUnique({
       where: { id: productId },
+      select: {
+        id: true,
+        name: true,
+        price: true,
+        stockQuantity: true,
+        primaryPhotoUrl: true,
+        slug: true,
+      },
     });
 
     if (!product) {
       throw new NotFoundException('Product not found');
+    }
+
+    // Stok kontrolü
+    if (product.stockQuantity <= 0) {
+      throw new BadRequestException('Product is out of stock');
+    }
+
+    if (quantity > product.stockQuantity) {
+      throw new BadRequestException(`Only ${product.stockQuantity} items available in stock`);
     }
 
     const cart = await this.getCartByUserId(userId);
@@ -80,21 +97,30 @@ export class CartService {
       },
     });
 
-    if (existingItem) {    return this.prisma.cartItem.update({
-      where: { id: existingItem.id },
-      data: { quantity: existingItem.quantity + quantity },
-      include: {
-        product: {
-          select: {
-            id: true,
-            name: true,
-            price: true,
-            primaryPhotoUrl: true,
-            slug: true,
+    if (existingItem) {
+      const newQuantity = existingItem.quantity + quantity;
+      
+      // Toplam miktar stoktan fazla olmamalı
+      if (newQuantity > product.stockQuantity) {
+        throw new BadRequestException(`Cannot add ${quantity} items. Only ${product.stockQuantity - existingItem.quantity} more items can be added`);
+      }
+
+      return this.prisma.cartItem.update({
+        where: { id: existingItem.id },
+        data: { quantity: newQuantity },
+        include: {
+          product: {
+            select: {
+              id: true,
+              name: true,
+              price: true,
+              stockQuantity: true,
+              primaryPhotoUrl: true,
+              slug: true,
+            },
           },
         },
-      },
-    });
+      });
     }
 
     return this.prisma.cartItem.create({
@@ -109,6 +135,7 @@ export class CartService {
             id: true,
             name: true,
             price: true,
+            stockQuantity: true,
             primaryPhotoUrl: true,
             slug: true,
           },
@@ -125,6 +152,14 @@ export class CartService {
         id: cartItemId,
         cartId: cart.id,
       },
+      include: {
+        product: {
+          select: {
+            id: true,
+            stockQuantity: true,
+          },
+        },
+      },
     });
 
     if (!cartItem) {
@@ -133,6 +168,11 @@ export class CartService {
 
     if (quantity <= 0) {
       return this.removeCartItem(userId, cartItemId);
+    }
+
+    // Stok kontrolü
+    if (quantity > cartItem.product.stockQuantity) {
+      throw new BadRequestException(`Only ${cartItem.product.stockQuantity} items available in stock`);
     }
 
     return this.prisma.cartItem.update({
@@ -144,6 +184,7 @@ export class CartService {
             id: true,
             name: true,
             price: true,
+            stockQuantity: true,
             primaryPhotoUrl: true,
             slug: true,
           },

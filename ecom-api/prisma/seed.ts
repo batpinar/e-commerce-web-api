@@ -116,6 +116,7 @@ async function main() {
             shortDescription: faker.commerce.productDescription(),
             longDescription: faker.lorem.paragraphs(3),
             price: parseFloat(faker.commerce.price({ min: 100, max: 2000 })),
+            stockQuantity: faker.number.int({ min: 0, max: 100 }), // Rastgele stok miktarı
             primaryPhotoUrl: faker.image.url({ width: 800, height: 600 }),
             commentCount: 0,
             averageRating: 0,
